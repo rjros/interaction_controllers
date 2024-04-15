@@ -29,6 +29,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "nav_msgs/msg/odometry.hpp" //leptrino wrench  f and torque*
 #include "geometry_msgs/msg/wrench_stamped.hpp" //leptrino wrench  f and torque*
+#include "geometry_msgs/msg/pose_stamped.hpp" // msg type to be published with correction
 //px4 msgs/ odometry position used in for the manipulator 
 
 class AdmittanceController : public rclcpp::Node {
@@ -43,13 +44,19 @@ class AdmittanceController : public rclcpp::Node {
         void initUAVImpedance();
         void computeImpedance();
 
+        //ROS Related callbacks
+        void StateSubCallback();
+        void WrenchSubCallback();
         void publishMessage();
         
         //// ROS variables ////
-        rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr state_sub; // Later change to PX4 msg sub type
-        rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr wrench_sub; //PX4 msg sub type
-        rclcpp::Publisher<geometry_msgs::msg::WrenchStamped>::SharedPtr publisher_;
+        rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr state_sub_; // Later change to PX4 msg sub type
+        rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr wrench_sub_; //PX4 msg sub type
+        rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr publisher_;
         rclcpp::TimerBase::SharedPtr timer_;
+
+        int rate_;
+
 };
 
 #endif 

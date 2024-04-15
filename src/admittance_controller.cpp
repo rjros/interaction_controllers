@@ -25,14 +25,27 @@
 #include <admittance_controller.hpp>
 #include <cstdio>
 
+AdmittanceController :: AdmittanceController() : Node("admittance_wrench_control") 
+{
+  int ms_time=1000/rate_;
+  state_sub_= this->create_subscription<geometry_msgs::msg::PoseStamped>("px4_odometry_topic", 10, std::bind(&AdmittanceController::StateSubCallback, this, _1));
+  wrench_sub_= this->create_subscription<geometry_msgs::msg::WrenchStamped>("leptrino_wrench_topic", 10, std::bind(&AdmittanceController::WrenchSubCallback, this, _1));
+  publisher_= this->create_publisher<geometry_msgs::msg::PoseStamped>("force_publisher",10);
+  timer_ = this->create_wall_timer(std::chrono::milliseconds(ms_time), std::bind(&AdmittanceController::publishMessage, this));
+}
 
+// msg to be sent to px4 or position publisher...
+void AdmittanceController :: publishMessage(){
+    auto message=std::make_unique<geometry_msgs::msg::PoseStamped>();
+}
 
 
 int main(int argc, char ** argv)
 {
-  (void) argc;
-  (void) argv;
-
-  printf("hello world Interaction_Controllers package\n");
+  rclcpp::init(argc,argv);
+  std::shared_ptr<AdmittanceController>node=std::make_shared<AdmittanceController>();
+  //rclcpp::spin(node);
+  rclcpp::shutdown();
   return 0;
+
 }
