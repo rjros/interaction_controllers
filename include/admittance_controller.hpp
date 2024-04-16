@@ -38,8 +38,8 @@ class AdmittanceController : public rclcpp::Node {
         //Destructor//
         ~AdmittanceController();
     private:
-        void initROSNode();
-        void declareParameters();
+        // void initROSNode();
+        // void declareParameters();
         void initUAVImpedance();
         void computeImpedance();
 
@@ -57,6 +57,8 @@ class AdmittanceController : public rclcpp::Node {
         //Internal variables
         std::vector<double> refPosition_ = std::vector<double>(3,0);
         std::vector<double>refQuaternion_ = std::vector<double>(4,0);
+        std::vector<double> refForce_ = std::vector<double>(3,0);
+        std::vector<double>refTorque_ = std::vector<double>(3,0);
         std::vector<double> euler_ = std::vector<double>(3,0);
 
         int rate_;
