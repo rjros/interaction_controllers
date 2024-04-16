@@ -29,19 +29,24 @@
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/wrench_stamped.hpp" //leptrino wrench  f and torque*
 #include "geometry_msgs/msg/pose_stamped.hpp" // msg type to be published with correction
-//px4 msgs/ odometry position used in for the manipulator 
+using std::placeholders::_1; // Place holder for ros subscriptions
+
 
 class AdmittanceController : public rclcpp::Node {
+    
     public: 
+        //// CONSTRUCTOR ////
+        /*constructor of the class*/
         AdmittanceController();
-
+    
         //Destructor//
         ~AdmittanceController();
     private:
-        // void initROSNode();
+        
+        void initNode();
         // void declareParameters();
-        void initUAVImpedance();
-        void computeImpedance();
+        void initAdmittance();
+        void computeAdmittance();
 
         //ROS Related callbacks
         void StateSubCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);

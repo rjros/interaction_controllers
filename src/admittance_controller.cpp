@@ -26,26 +26,36 @@
 #include <cstdio>
 #include <algorithm>
 #include <iterator>
-using std::placeholders::_1; // Place holder for ros subscriptions
 
 
 AdmittanceController :: AdmittanceController() : Node("admittance_wrench_control") 
 {
-  // int ms_time=10;//1000/rate_;
-  state_sub_= this->create_subscription<geometry_msgs::msg::PoseStamped>("px4_odometry_topic", 1, 
-  std::bind(&AdmittanceController::StateSubCallback, this,_1));
+  
+  //initialization ROS node
+  RCLCPP_INFO(this->get_logger(), "%s\n","I am initializing the ROS node...");
+  initNode();
+  initAdmittance();
 
-  wrench_sub_= this->create_subscription<geometry_msgs::msg::WrenchStamped>("leptrino_wrench_topic", 1, 
-  std::bind(&AdmittanceController::WrenchSubCallback, this,_1));
-  // publisher_= this->create_publisher<geometry_msgs::msg::PoseStamped>("force_publisher",10);
-  // timer_ = this->create_wall_timer(std::chrono::milliseconds(ms_time), std::bind(&AdmittanceController::publishMessage, this));
 }
 
-// msg to be sent to px4 or position publisher...
+
+void AdmittanceController :: initNode()
+{
+  int ms_time=10;//1000/rate_;
+  state_sub_= this->create_subscription<geometry_msgs::msg::PoseStamped>("px4_odometry_topic", 1, 
+  std::bind(&AdmittanceController::StateSubCallback, this,_1));
+  wrench_sub_= this->create_subscription<geometry_msgs::msg::WrenchStamped>("leptrino_wrench_topic", 1, 
+  std::bind(&AdmittanceController::WrenchSubCallback, this,_1));
+  publisher_= this->create_publisher<geometry_msgs::msg::PoseStamped>("force_publisher",10);
+  timer_ = this->create_wall_timer(std::chrono::milliseconds(ms_time), std::bind(&AdmittanceController::publishMessage, this));
+  
+}
 
 //// ROS Functions ////
 
-void AdmittanceController :: publishMessage(){
+void AdmittanceController :: publishMessage()
+{
+    computeAdmittance();
     auto message = std::make_unique<geometry_msgs::msg::PoseStamped>();
     message->header.stamp = this->now(); // Set timestamp
     message->pose.position.x = 0.0;      // Set position (example values)
@@ -79,13 +89,22 @@ void AdmittanceController :: WrenchSubCallback(const geometry_msgs::msg::WrenchS
 //// ROS Functions END ////
 
 
-void AdmittanceController::initUAVImpedance(){
+void AdmittanceController::initAdmittance()
+{
+  
+  RCLCPP_INFO(this->get_logger(), "%s\n","Initializing admittance controller...");// string followed by a newline
 
 }
-void AdmittanceController::computeImpedance(){
+void AdmittanceController::computeAdmittance()
+{
+  RCLCPP_INFO(this->get_logger(),"%s\n","Computing admittance controller...");
 
 }
 
+AdmittanceController :: ~AdmittanceController()
+{
+ RCLCPP_INFO(this->get_logger(), "Shutting down node.");
+}
 
 
 
