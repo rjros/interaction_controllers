@@ -22,12 +22,14 @@
  */
 
 
-#include <admittance_controller.hpp>
+#include "admittance_controller.hpp"
 #include <cstdio>
+#include <algorithm>
+
 
 AdmittanceController :: AdmittanceController() : Node("admittance_wrench_control") 
 {
-  int ms_time=1000/rate_;
+  int ms_time=10;//1000/rate_;
   state_sub_= this->create_subscription<geometry_msgs::msg::PoseStamped>("px4_odometry_topic", 10, std::bind(&AdmittanceController::StateSubCallback, this, _1));
   wrench_sub_= this->create_subscription<geometry_msgs::msg::WrenchStamped>("leptrino_wrench_topic", 10, std::bind(&AdmittanceController::WrenchSubCallback, this, _1));
   publisher_= this->create_publisher<geometry_msgs::msg::PoseStamped>("force_publisher",10);
@@ -39,6 +41,17 @@ void AdmittanceController :: publishMessage(){
     auto message=std::make_unique<geometry_msgs::msg::PoseStamped>();
 }
 
+void AdmittanceController :: StateSubCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg )
+{
+  auto position =msg->pose.position;
+  std::copy(std::begin(position),std::end(position),std::begin(refPosition_));
+
+}
+
+void AdmittanceController :: WrenchSubCallback(const geometry_msgs::msg::WrenchStamped::SharedPtr msg )
+{
+  
+}
 
 int main(int argc, char ** argv)
 {

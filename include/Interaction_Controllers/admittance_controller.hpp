@@ -27,7 +27,6 @@
 
 // ROS2 libraries 
 #include "rclcpp/rclcpp.hpp"
-#include "nav_msgs/msg/odometry.hpp" //leptrino wrench  f and torque*
 #include "geometry_msgs/msg/wrench_stamped.hpp" //leptrino wrench  f and torque*
 #include "geometry_msgs/msg/pose_stamped.hpp" // msg type to be published with correction
 //px4 msgs/ odometry position used in for the manipulator 
@@ -45,8 +44,8 @@ class AdmittanceController : public rclcpp::Node {
         void computeImpedance();
 
         //ROS Related callbacks
-        void StateSubCallback();
-        void WrenchSubCallback();
+        void StateSubCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
+        void WrenchSubCallback(const geometry_msgs::msg::WrenchStamped::SharedPtr msg);
         void publishMessage();
         
         //// ROS variables ////
@@ -54,6 +53,11 @@ class AdmittanceController : public rclcpp::Node {
         rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr wrench_sub_; //PX4 msg sub type
         rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr publisher_;
         rclcpp::TimerBase::SharedPtr timer_;
+
+        //Internal variables
+        std::vector<double> refPosition_ = std::vector<double>(3,0);
+        std::vector<double>refQuaternion_ = std::vector<double>(4,0);
+        std::vector<double> euler_ = std::vector<double>(3,0);
 
         int rate_;
 
