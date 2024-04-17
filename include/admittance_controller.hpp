@@ -29,6 +29,9 @@
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/wrench_stamped.hpp> //leptrino wrench  f and torque*
 #include <geometry_msgs/msg/pose_stamped.hpp>
+
+#include <px4_msgs/msg/trajectory_setpoint.hpp>
+
 #include <Eigen/Dense> // msg type to be published with correction
 using std::placeholders::_1; // Place holder for ros subscriptions
 
@@ -50,20 +53,22 @@ class AdmittanceController : public rclcpp::Node {
         void computeAdmittance();
 
         //ROS Related callbacks
-        void StateSubCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
+        void TrajectorySubCallback(const px4_msgs::msg::TrajectorySetpoint::SharedPtr msg);
         void WrenchSubCallback(const geometry_msgs::msg::WrenchStamped::SharedPtr msg);
         void publishMessage();
         
         //// ROS variables ////
-        rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr state_sub_; // Later change to PX4 msg sub type
+        rclcpp::Subscription<px4_msgs::msg::TrajectorySetpoint>::SharedPtr trajectory_sub_; // Later change to PX4 msg sub type
         rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr wrench_sub_; //PX4 msg sub type
-        rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr publisher_;
+        rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr publisher_;
         rclcpp::TimerBase::SharedPtr timer_;
 
         //Internal variables
     
-        std::vector<double> positionRef_ = std::vector<double>(3,0);
+        std::vector<double> trajectoryRef_ = std::vector<double>(4,0);
         std::vector<double> positionSp_ = std::vector<double>(3,0);
+        float yawSp_; 
+
 
         std::vector<double>quaternionRef_ = std::vector<double>(4,0);
         std::vector<double>quaternionSp_ = std::vector<double>(4,0);
@@ -79,7 +84,7 @@ class AdmittanceController : public rclcpp::Node {
 
         int rate_;
         // Force Control internal varaibles 
-        double forceSp_; 
+        double forceSp_;
 
 
 };
