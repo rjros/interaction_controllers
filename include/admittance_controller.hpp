@@ -26,9 +26,10 @@
 
 
 // ROS2 libraries 
-#include "rclcpp/rclcpp.hpp"
-#include "geometry_msgs/msg/wrench_stamped.hpp" //leptrino wrench  f and torque*
-#include "geometry_msgs/msg/pose_stamped.hpp" // msg type to be published with correction
+#include <rclcpp/rclcpp.hpp>
+#include <geometry_msgs/msg/wrench_stamped.hpp> //leptrino wrench  f and torque*
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <Eigen/Dense> // msg type to be published with correction
 using std::placeholders::_1; // Place holder for ros subscriptions
 
 
@@ -60,13 +61,26 @@ class AdmittanceController : public rclcpp::Node {
         rclcpp::TimerBase::SharedPtr timer_;
 
         //Internal variables
-        std::vector<double> refPosition_ = std::vector<double>(3,0);
-        std::vector<double>refQuaternion_ = std::vector<double>(4,0);
-        std::vector<double> refForce_ = std::vector<double>(3,0);
-        std::vector<double>refTorque_ = std::vector<double>(3,0);
-        std::vector<double> euler_ = std::vector<double>(3,0);
+    
+        std::vector<double> positionRef_ = std::vector<double>(3,0);
+        std::vector<double> positionSp_ = std::vector<double>(3,0);
+
+        std::vector<double>quaternionRef_ = std::vector<double>(4,0);
+        std::vector<double>quaternionSp_ = std::vector<double>(4,0);
+
+        std::vector<double> forceRef_ = std::vector<double>(3,0);
+        std::vector<double>torqueRef_ = std::vector<double>(3,0);
+        std::vector<double> eulerRef_ = std::vector<double>(3,0);
+
+        // Inertial (M), Damping (D) and Stiffness (K) matrices
+
+        double K_{0};
+
 
         int rate_;
+        // Force Control internal varaibles 
+        double forceSp_; 
+
 
 };
 
