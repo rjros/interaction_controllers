@@ -6,34 +6,49 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # Find dependencies
+# find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclpy REQUIRED)
+find_package(ament_cmake_python REQUIRED)
+
 find_package(geometry_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(px4_msgs REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
+## custom msgs
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/ContactSetpoint.msg"
+)
+
+## Include Cpp "include" directory
+include_directories(include)
 include_directories(${EIGEN3_INCLUDE_DIR})
 
 
-# Create an executable
+## Create Cpp executables and link with the dependencies 
 add_executable(admittance_controller
   src/admittance_controller.cpp
 )
 ament_target_dependencies(admittance_controller rclcpp geometry_msgs px4_msgs)
 
-include_directories(include)
-
-# Include directories
-target_include_directories(admittance_controller PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>
-)
-
-# Install executables
+## Install Cpp executables in the /ros_ws2/install/...
 install(TARGETS
   admittance_controller
   DESTINATION lib/${PROJECT_NAME}
 )
+
+# Install Python modules and scripts
+ament_python_install_package(${PROJECT_NAME})
+
+# Install Python scripts
+install(PROGRAMS
+  scripts/simple_interaction_setpoints.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+# Install executables
 
 # Install header files
 install(DIRECTORY include/
