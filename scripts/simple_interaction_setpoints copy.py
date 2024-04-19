@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 #   Copyright 2024, Ricardo Rosales Martinez
  
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,8 +20,8 @@ __version__ = "1.0"
 
 import rclpy 
 from rclpy.node import Node
-from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleControlMode, VehicleOdometry
-from interaction_controllers.msg import ContactSetpoint 
+from px4_msgs.msg import VehicleControlMode, VehicleOdometry
+from interaction_msgs.msg import ContactSetpoint 
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 import numpy as np
 import math 
@@ -64,10 +66,10 @@ class RectangleSetpoint(Node):
         self.timer = self.create_timer(1/pub_rate, self.timer_callback)
 
         self.diagonal_trajectory = np.array([
-            [1.0, 0.0, -1.0, 0],
-            [2.0, 0.0, -2.0, 0],
-            [1.0, 0.0, -1.0, 0],
-            [2.0, 0.0, -2.0, 0]
+            [1.0, 0.0, -2.0, 0],
+            [1.0, 2.0, -2.0, 0],
+            [1.0, 0.0, -2.0, 0],
+            [1.0, 2.0, -2.0, 0]
         ])
     
     def flight_mode_callback(self,msg):
@@ -75,36 +77,32 @@ class RectangleSetpoint(Node):
     
     def odometry_callback(self,msg):
         self.odometry=msg
-    
-    ## use to confirm the uav is engaged in contact with the wall.
-    
+
     def calculate_distance(self,trajectory_points):
         x,y,z=self.odometry.position
         tx,ty,tz=trajectory_points[:3]
         # print("Test",trajectory_points[:3])
         distance=math.sqrt((tx-x)**2 + (ty-y)**2 + (tz-z)**2)
         # print("Distance",distance)
+
         return distance
 
+        
     def timer_callback(self):
 
         # Start sending setpoints if in offboard mode
-        if 1:
+        if self.offboard_mode:
             # Trajectory setpoint - NED local world frame
             contact_setpoint= ContactSetpoint()
             distance=self.calculate_distance(self.diagonal_trajectory[self.iter])
-            if distance <= self.threshold:
-                print("Reached")
-                self.iter = (self.iter+1) % 4
             target_setpoints = self.diagonal_trajectory[self.iter]
             contact_setpoint.position = target_setpoints[:3] # [x, y, z] in meters
             #setpoint_traj.velocity # in m/s
             #setpoint_traj.acceleration # in m/s^2
             #setpoint_traj.jerk # m/s^3 (for logging only)
             contact_setpoint.yaw = 0
-            #setpoint_traj.yawspeed = 0.0 # in rad/s
-            # Publish
-            #Wait when on corners 
+            contact_setpoint.desired_force = -5 # Newtons
+            contact_setpoint.contact=True
             self.setpoint_pub.publish(contact_setpoint)
         else:
             self.iter = 0

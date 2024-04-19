@@ -5,22 +5,18 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# Find dependencies
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
-find_package(ament_cmake_python REQUIRED)
 
 find_package(geometry_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(px4_msgs REQUIRED)
-find_package(rosidl_default_generators REQUIRED)
 
-## custom msgs
-rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/ContactSetpoint.msg"
-)
+find_package(interaction_msgs REQUIRED)
+
 
 ## Include Cpp "include" directory
 include_directories(include)
@@ -31,7 +27,7 @@ include_directories(${EIGEN3_INCLUDE_DIR})
 add_executable(admittance_controller
   src/admittance_controller.cpp
 )
-ament_target_dependencies(admittance_controller rclcpp geometry_msgs px4_msgs)
+ament_target_dependencies(admittance_controller rclcpp geometry_msgs px4_msgs interaction_msgs)
 
 ## Install Cpp executables in the /ros_ws2/install/...
 install(TARGETS

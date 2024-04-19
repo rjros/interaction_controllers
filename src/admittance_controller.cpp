@@ -26,7 +26,6 @@
 #include <cstdio>
 #include <algorithm>
 #include <iterator>
-// #include <interaction_controllers/msg/contact_setpoint.h>
 
 
 AdmittanceController :: AdmittanceController() : Node("admittance_wrench_control") 

@@ -31,7 +31,7 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 
 #include <px4_msgs/msg/trajectory_setpoint.hpp>
-#include <interaction_controllers/msg/contact_setpoint.h>
+#include <interaction_msgs/msg/contact_setpoint.hpp>
 
 #include <Eigen/Dense> // msg type to be published with correction
 using std::placeholders::_1; // Place holder for ros subscriptions
