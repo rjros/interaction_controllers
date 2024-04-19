@@ -42,7 +42,7 @@ AdmittanceController :: AdmittanceController() : Node("admittance_wrench_control
 void AdmittanceController :: initNode()
 {
   int ms_time=10;//1000/rate_;
-  trajectory_sub_= this->create_subscription<px4_msgs::msg::TrajectorySetpoint>("/raw/trajectory_setpoint", 10, 
+  trajectory_sub_= this->create_subscription<interaction_msgs::msg::ContactSetpoint>("/raw/trajectory_setpoint", 10, 
   std::bind(&AdmittanceController::TrajectorySubCallback, this,_1));
   wrench_sub_= this->create_subscription<geometry_msgs::msg::WrenchStamped>("leptrino_force_sensor/sensor_wrench", 1, 
   std::bind(&AdmittanceController::WrenchSubCallback, this,_1));
@@ -55,8 +55,7 @@ void AdmittanceController :: initNode()
 
 void AdmittanceController :: publishMessage()
 {
-  computeAdmittance();
-
+    computeAdmittance();
 
     auto message = std::make_unique<px4_msgs::msg::TrajectorySetpoint>();
     message->timestamp = 0; // Set timestamp to microseconds
@@ -76,12 +75,14 @@ void AdmittanceController :: publishMessage()
 
 }
 
-void AdmittanceController :: TrajectorySubCallback(const px4_msgs::msg::TrajectorySetpoint::SharedPtr msg )
+void AdmittanceController :: TrajectorySubCallback(const interaction_msgs::msg::ContactSetpoint::SharedPtr msg )
 {
   auto position =msg->position;
   auto yaw = msg->yaw;
-  trajectoryRef_={position[0],position[1],position[2],yaw};
+  contactRef_=msg->contact;
   yawSp_ = yaw;
+  trajectoryRef_={position[0],position[1],position[2],yawSp_};
+
 
   // RCLCPP_INFO(this->get_logger(), "Force X %f Force Y %f Force Z %f", forceRef_[0], forceRef_[1], forceRef_[2]);
 
@@ -105,7 +106,7 @@ void AdmittanceController :: WrenchSubCallback(const geometry_msgs::msg::WrenchS
 void AdmittanceController::initAdmittance()
 {
   // Get parameters from config file regarding the M, D and K matrices
-  K_=0.1;
+  K_=5;
   forceSp_=-5;
 
   RCLCPP_INFO(this->get_logger(), "%s\n","Initializing admittance controller...");// string followed by a newline
@@ -113,14 +114,29 @@ void AdmittanceController::initAdmittance()
 }
 void AdmittanceController::computeAdmittance()
 {
-  RCLCPP_INFO(this->get_logger(),"%s\n","Computing admittance controller...");
+  // RCLCPP_INFO(this->get_logger(),"%s\n","Computing admittance controller...");
   // RCLCPP_INFO(this->get_logger(), "Force X %f Force Y %f Force Z %f", forceRef_[0], forceRef_[1], forceRef_[2]);
 
   //// Force in the axis of the manipulator ////
   /// Rotate wrt to the Yaw (B)
-  positionSp_[0] = trajectoryRef_[0] + (forceRef_[2]-forceSp_)/K_;
-  positionSp_[1] = trajectoryRef_[1] ;//positionRef_[1]; 
-  positionSp_[2] = trajectoryRef_[2] ;//positionRef_[2];
+  if(!contactRef_)
+  {
+    positionSp_[0] = trajectoryRef_[0] ;//+ (forceRef_[2]-forceSp_)/K_;
+    positionSp_[1] = trajectoryRef_[1] ;//positionRef_[1]; 
+    positionSp_[2] = trajectoryRef_[2] ;//positionRef_[2];
+  }
+
+  else 
+  {
+    positionSp_[0] = trajectoryRef_[0] + (forceRef_[2]-forceSp_)/K_; // current positon 
+    
+    // RCLCPP_INFO(this->get_logger(),"%f\n",positionSp_[0]);
+
+    positionSp_[1] = trajectoryRef_[1] ;//positionRef_[1]; 
+    positionSp_[2] = trajectoryRef_[2] ;//positionRef_[2];
+
+  }
+
 
 }
 

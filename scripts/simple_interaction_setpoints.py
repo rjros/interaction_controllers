@@ -20,7 +20,7 @@ __version__ = "1.0"
 
 import rclpy 
 from rclpy.node import Node
-from px4_msgs.msg import VehicleControlMode, VehicleOdometry
+from px4_msgs.msg import VehicleControlMode, VehicleOdometry, OffboardControlMode
 from interaction_msgs.msg import ContactSetpoint 
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 import numpy as np
@@ -38,6 +38,7 @@ class RectangleSetpoint(Node):
             depth=1
         )
         # Publishers and Subscribers
+        self.control_pub = self.create_publisher(OffboardControlMode, '/fmu/in/offboard_control_mode', 10)
         self.setpoint_pub = self.create_publisher(ContactSetpoint, '/raw/trajectory_setpoint', 10)
         self.mode_sub = self.create_subscription(VehicleControlMode, '/fmu/out/vehicle_control_mode', self.flight_mode_callback, qos_profile)
         self.odometry_pub =self.create_subscription(VehicleOdometry,'/fmu/out/vehicle_odometry',self.odometry_callback,qos_profile)
@@ -66,10 +67,10 @@ class RectangleSetpoint(Node):
         self.timer = self.create_timer(1/pub_rate, self.timer_callback)
 
         self.diagonal_trajectory = np.array([
-            [1.0, 0.0, -2.0, 0],
-            [1.0, 2.0, -2.0, 0],
-            [1.0, 0.0, -2.0, 0],
-            [1.0, 2.0, -2.0, 0]
+            [1.0, 1.0, -5.0, 0],
+            [1.0, 1.0, -5.0, 0],
+            [1.0, 1.0, -5.0, 0],
+            [1.0, 1.0, -5.0, 0]
         ])
     
     def flight_mode_callback(self,msg):
@@ -89,12 +90,29 @@ class RectangleSetpoint(Node):
 
         
     def timer_callback(self):
+        # Set and publish control flags
+        control_mode = OffboardControlMode()
+        # Timestamp is automatically set inside PX4
+        control_mode.timestamp = 0
+        # First field that has a non-zero value (from top to bottom)
+        # defines what valid estimate is required
+        control_mode.position = True
+        control_mode.velocity = False
+        control_mode.acceleration  = False
+        control_mode.attitude = False
+        control_mode.body_rate = False
+        control_mode.thrust_and_torque = False
+        control_mode.direct_actuator = False
+        self.control_pub.publish(control_mode)
 
         # Start sending setpoints if in offboard mode
-        if 1:
+        if self.offboard_mode:
             # Trajectory setpoint - NED local world frame
             contact_setpoint= ContactSetpoint()
-            # distance=self.calculate_distance(self.diagonal_trajectory[self.iter])
+            distance=self.calculate_distance(self.diagonal_trajectory[self.iter])
+            if distance <= self.threshold:
+                print("Reached")
+                self.iter = (self.iter+1) % 4
             target_setpoints = self.diagonal_trajectory[self.iter]
             px=target_setpoints[0]
             py=target_setpoints[1]

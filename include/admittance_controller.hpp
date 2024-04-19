@@ -54,12 +54,12 @@ class AdmittanceController : public rclcpp::Node {
         void computeAdmittance();
 
         //ROS Related callbacks
-        void TrajectorySubCallback(const px4_msgs::msg::TrajectorySetpoint::SharedPtr msg);
+        void TrajectorySubCallback(const interaction_msgs::msg::ContactSetpoint::SharedPtr msg);
         void WrenchSubCallback(const geometry_msgs::msg::WrenchStamped::SharedPtr msg);
         void publishMessage();
         
         //// ROS variables ////
-        rclcpp::Subscription<px4_msgs::msg::TrajectorySetpoint>::SharedPtr trajectory_sub_; // Later change to PX4 msg sub type
+        rclcpp::Subscription<interaction_msgs::msg::ContactSetpoint>::SharedPtr trajectory_sub_; // Later change to PX4 msg sub type
         rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr wrench_sub_; //PX4 msg sub type
         rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr publisher_;
         rclcpp::TimerBase::SharedPtr timer_;
@@ -86,6 +86,7 @@ class AdmittanceController : public rclcpp::Node {
         int rate_;
         // Force Control internal varaibles 
         double forceSp_;
+        bool contactRef_{false};
 
 
 };
