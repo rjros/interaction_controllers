@@ -67,10 +67,10 @@ class RectangleSetpoint(Node):
         self.timer = self.create_timer(1/pub_rate, self.timer_callback)
 
         self.diagonal_trajectory = np.array([
-            [1.0, 1.0, -5.0, 0],
-            [1.0, 1.0, -5.0, 0],
-            [1.0, 1.0, -5.0, 0],
-            [1.0, 1.0, -5.0, 0]
+            [4.2, 0.0, -1.6, 0],
+            [4.2, 0.0, -1.6, 0],
+            [4.2, 0.0, -1.6, 0],
+            [4.2, 0.0, -1.6, 0]
         ])
     
     def flight_mode_callback(self,msg):
@@ -118,9 +118,9 @@ class RectangleSetpoint(Node):
             py=target_setpoints[1]
             pz=target_setpoints[2]
             contact_setpoint.position=[px,py,pz]
-            contact_setpoint.yaw = 0.0
+            contact_setpoint.yaw = np.radians(0)
             contact_setpoint.desired_force = -5.0 # Newtons
-            contact_setpoint.contact=True
+            contact_setpoint.contact=False
             self.setpoint_pub.publish(contact_setpoint)
         else:
             self.iter = 0
