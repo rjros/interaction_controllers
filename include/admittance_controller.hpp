@@ -68,6 +68,7 @@ class AdmittanceController : public rclcpp::Node {
     
         std::vector<double> trajectoryRef_ = std::vector<double>(4,0);
         std::vector<double> positionSp_ = std::vector<double>(3,0);
+        float yawRf_;
         float yawSp_; 
 
 
@@ -80,7 +81,10 @@ class AdmittanceController : public rclcpp::Node {
 
         // Inertial (M), Damping (D) and Stiffness (K) matrices
 
-        double K_{0};
+        double K_x{0};
+        double K_z{0};
+        double K_yaw{0};
+
 
 
         int rate_;

@@ -49,7 +49,7 @@ class RectangleSetpoint(Node):
         self.y_length = 0.8 # [m]
         self.z=np.array([-1.0,-1.0,-1.0,-1.0]) # [m]
         self.odometry=VehicleOdometry()
-        self.threshold= 0.10 #tolerance to target position in m
+        self.threshold= 0.08 #tolerance to target position in m
 
         
         # Number of points between corners
@@ -62,15 +62,15 @@ class RectangleSetpoint(Node):
         self.offboard_mode = False
         # self.create_shape_with_points()
         # Set publish rate timer
-        pub_rate = 30.0  # Hz. Set rate of > 2Hz for OffboardControlMode 
+        pub_rate = 100  # Hz. Set rate of > 2Hz for OffboardControlMode 
         # Adjust the timer to increase publishing speed of setpoints
         self.timer = self.create_timer(1/pub_rate, self.timer_callback)
 
         self.diagonal_trajectory = np.array([
-            [4.2, 0.0, -1.6, 0],
-            [4.2, 0.0, -1.6, 0],
-            [4.2, 0.0, -1.6, 0],
-            [4.2, 0.0, -1.6, 0]
+            [4.5, 0.0, -1.6, 0],
+            [4.5, 0.0, -1.6, 0],
+            [4.5, 0.0, -1.6, 0],
+            [4.5, 0.0, -1.6, 0]
         ])
     
     def flight_mode_callback(self,msg):
@@ -117,10 +117,12 @@ class RectangleSetpoint(Node):
             px=target_setpoints[0]
             py=target_setpoints[1]
             pz=target_setpoints[2]
+            yaw=target_setpoints[3]
             contact_setpoint.position=[px,py,pz]
-            contact_setpoint.yaw = np.radians(0)
+            contact_setpoint.yaw = np.radians(yaw)
             contact_setpoint.desired_force = -5.0 # Newtons
-            contact_setpoint.contact=False
+            contact_setpoint.contact=(distance<=self.threshold)
+            print(contact_setpoint.contact)
             self.setpoint_pub.publish(contact_setpoint)
         else:
             self.iter = 0

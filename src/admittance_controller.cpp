@@ -71,7 +71,7 @@ void AdmittanceController :: publishMessage()
     message->position[2]=positionSp_[2];
     message->yaw=yawSp_;
 
-    RCLCPP_INFO(this->get_logger(), "x pos %f y pos %f z pos %f\n" ,positionSp_[0],positionSp_[1],positionSp_[2]);
+    RCLCPP_INFO(this->get_logger(), "x pos %f y pos %f z pos %f yaw %f\n" ,positionSp_[0],positionSp_[1],positionSp_[2],yawSp_);
     
     publisher_->publish(std::move(message));
 
@@ -83,7 +83,7 @@ void AdmittanceController :: TrajectorySubCallback(const interaction_msgs::msg::
   auto position =msg->position;
   auto yaw = msg->yaw;
   contactRef_=msg->contact;
-  yawSp_ = yaw;
+  yawRf_ = yaw;
   trajectoryRef_={position[0],position[1],position[2],yawSp_};
 
 
@@ -109,7 +109,9 @@ void AdmittanceController :: WrenchSubCallback(const geometry_msgs::msg::WrenchS
 void AdmittanceController::initAdmittance()
 {
   // Get parameters from config file regarding the M, D and K matrices
-  K_=0.5;
+  K_x=15;
+  K_z=1.2;
+  K_yaw=0.09;  
   forceSp_=-3;
 
   RCLCPP_INFO(this->get_logger(), "%s\n","Initializing admittance controller...");// string followed by a newline
@@ -122,23 +124,22 @@ void AdmittanceController::computeAdmittance()
 
   //// Force in the axis of the manipulator ////
   /// Rotate wrt to the Yaw (B)
-  // if(!contactRef_)
-  // {
-  //   positionSp_[0] = trajectoryRef_[0] ;//+ (forceRef_[2]-forceSp_)/K_;
-  //   positionSp_[1] = trajectoryRef_[1] ;//positionRef_[1]; 
-  //   positionSp_[2] = trajectoryRef_[2] ;//positionRef_[2];
-  // }
+  if(!(forceRef_[2]<-1.000))
+  {
+    positionSp_[0] = trajectoryRef_[0] ;//+ (forceRef_[2]-forceSp_)/K_;
+    positionSp_[1] = trajectoryRef_[1] ;//positionRef_[1]; 
+    positionSp_[2] = trajectoryRef_[2] ;//positionRef_[2];
+    yawSp_=0;
+  }
 
-  // else 
-  // {
-    positionSp_[0] = trajectoryRef_[0] + (forceRef_[2]-forceSp_)/K_; // current positon 
-    
-    // RCLCPP_INFO(this->get_logger(),"%f\n",positionSp_[0]);
+  else 
+  {
+    positionSp_[0] = trajectoryRef_[0] - (forceSp_-forceRef_[2])/K_x; // current positon 
+    positionSp_[1] = trajectoryRef_[1];// + (forceRef_[1])/100;//positionRef_[1]; 
+    positionSp_[2] = trajectoryRef_[2]+ (forceRef_[0])/K_z;// + (forceRef_[2]-0)/K_;//positionRef_[2];
+    yawSp_=((trajectoryRef_[3]-forceRef_[1]/K_yaw))*3.14/180;
 
-    positionSp_[1] = trajectoryRef_[1] + (forceRef_[1])/100;//positionRef_[1]; 
-    positionSp_[2] = trajectoryRef_[2]-(forceRef_[0])/100;// + (forceRef_[2]-0)/K_;//positionRef_[2];
-
-  // }
+  }
 
 
 }
