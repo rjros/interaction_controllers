@@ -27,7 +27,12 @@ include_directories(${EIGEN3_INCLUDE_DIR})
 add_executable(admittance_controller
   src/admittance_controller.cpp
 )
+add_executable(direct_force_controller
+  src/direct_force_controller.cpp
+)
 ament_target_dependencies(admittance_controller rclcpp geometry_msgs px4_msgs interaction_msgs)
+ament_target_dependencies(direct_force_controller rclcpp geometry_msgs px4_msgs interaction_msgs)
+
 
 ## Install Cpp executables in the /ros_ws2/install/...
 install(TARGETS
