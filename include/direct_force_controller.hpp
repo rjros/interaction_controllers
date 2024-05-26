@@ -27,10 +27,10 @@
 
 // ROS2 libraries 
 #include <rclcpp/rclcpp.hpp>
-#include <geometry_msgs/msg/wrench_stamped.hpp> //leptrino wrench  f and torque*
-#include <geometry_msgs/msg/pose_stamped.hpp>
 
-#include <px4_msgs/msg/trajectory_setpoint.hpp>
+#include <geometry_msgs/msg/wrench_stamped.hpp> //leptrino wrench  f and torque*
+
+#include <px4_msgs/msg/planar_thrust_setpoint.hpp>
 #include <interaction_msgs/msg/contact_setpoint.hpp>
 
 #include <Eigen/Dense> // msg type to be published with correction
@@ -50,24 +50,30 @@ class DirectForceController : public rclcpp::Node {
         
         void initNode();
         // void declareParameters();
-        void initAdmittance();
-        void computeAdmittance();
+        void initController();
+        void computeForceCmd();
 
         //ROS Related callbacks
-        void TrajectorySubCallback(const interaction_msgs::msg::ContactSetpoint::SharedPtr msg);
+        void ContactSubCallback(const interaction_msgs::msg::ContactSetpoint::SharedPtr msg);
         void WrenchSubCallback(const geometry_msgs::msg::WrenchStamped::SharedPtr msg);
         void publishMessage();
         
         //// ROS variables ////
         rclcpp::Subscription<interaction_msgs::msg::ContactSetpoint>::SharedPtr trajectory_sub_; // Later change to PX4 msg sub type
         rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr wrench_sub_; //PX4 msg sub type
-        rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr publisher_;
+        rclcpp::Publisher<px4_msgs::msg::PlanarThrustSetpoint>::SharedPtr publisher_;
+
+  
         rclcpp::TimerBase::SharedPtr timer_;
+        rclcpp::Clock::SharedPtr clock = std::make_shared<rclcpp::Clock>(RCL_SYSTEM_TIME);
+        rclcpp::Time prevTime_;
+        rclcpp::Time currentTime_;
+        bool firstIteration_{true};
+        double dt{0};
 
         //Internal variables
-    
-        std::vector<double> trajectoryRef_ = std::vector<double>(4,0);
-        std::vector<double> positionSp_ = std::vector<double>(3,0);
+
+        std::vector<double> forceCmd_ = std::vector<double>(3,0);
         float yawRf_;
         float yawSp_; 
 
@@ -78,17 +84,21 @@ class DirectForceController : public rclcpp::Node {
         std::vector<double> forceRef_ = std::vector<double>(3,0);
         std::vector<double>torqueRef_ = std::vector<double>(3,0);
         std::vector<double> eulerRef_ = std::vector<double>(3,0);
+        
 
-        // Inertial (M), Damping (D) and Stiffness (K) matrices
+        // Using a PI controller for the force
+        double kp_{0};
+        double ki_{0};
+        double dt_={0};
 
-        double K_x{0};
-        double K_z{0};
-        double K_yaw{0};
-
+        double epForce_{0};
+        double eiForce_{0};
+        double efForce_{0};
+        double max_thrust_={0};
 
 
         int rate_;
-        // Force Control internal varaibles 
+        // Force Control internal variables 
         double forceSp_;
         bool contactRef_{false};
 

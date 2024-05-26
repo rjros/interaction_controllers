@@ -63,7 +63,9 @@ class AdmittanceController : public rclcpp::Node {
         rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr wrench_sub_; //PX4 msg sub type
         rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr publisher_;
         rclcpp::TimerBase::SharedPtr timer_;
-
+        rclcpp::Time currentTime_;
+        rclcpp::Time prevTime_;
+        
         //Internal variables
     
         std::vector<double> trajectoryRef_ = std::vector<double>(4,0);

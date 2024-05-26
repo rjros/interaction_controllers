@@ -20,7 +20,7 @@ __version__ = "1.0"
 
 import rclpy 
 from rclpy.node import Node
-from px4_msgs.msg import VehicleControlMode, VehicleOdometry, OffboardControlMode
+from px4_msgs.msg import VehicleControlMode, VehicleOdometry, OffboardControlMode, TrajectorySetpoint
 from interaction_msgs.msg import ContactSetpoint 
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 import numpy as np
@@ -39,7 +39,10 @@ class RectangleSetpoint(Node):
         )
         # Publishers and Subscribers
         self.control_pub = self.create_publisher(OffboardControlMode, '/fmu/in/offboard_control_mode', 10)
-        self.setpoint_pub = self.create_publisher(ContactSetpoint, '/raw/trajectory_setpoint', 10)
+        self.contact_pub = self.create_publisher(ContactSetpoint, '/raw/trajectory_setpoint', 10)
+        self.setpoint_pub = self.create_publisher(TrajectorySetpoint, '/fmu/in/trajectory_setpoint', 10)
+
+
         self.mode_sub = self.create_subscription(VehicleControlMode, '/fmu/out/vehicle_control_mode', self.flight_mode_callback, qos_profile)
         self.odometry_pub =self.create_subscription(VehicleOdometry,'/fmu/out/vehicle_odometry',self.odometry_callback,qos_profile)
 
@@ -49,7 +52,7 @@ class RectangleSetpoint(Node):
         self.y_length = 0.8 # [m]
         self.z=np.array([-1.0,-1.0,-1.0,-1.0]) # [m]
         self.odometry=VehicleOdometry()
-        self.threshold= 0.08 #tolerance to target position in m
+        self.threshold= 0.20 #tolerance to target position in m
 
         
         # Number of points between corners
@@ -67,10 +70,10 @@ class RectangleSetpoint(Node):
         self.timer = self.create_timer(1/pub_rate, self.timer_callback)
 
         self.diagonal_trajectory = np.array([
-            [4.5, 0.0, -1.6, 0],
-            [4.5, 0.0, -1.6, 0],
-            [4.5, 0.0, -1.6, 0],
-            [4.5, 0.0, -1.6, 0]
+            [4.2, 0.0, -1.6, 0],
+            [4.2, 0.0, -1.6, 0],
+            [4.2, 0.0, -1.6, 0],
+            [4.2, 0.0, -1.6, 0]
         ])
     
     def flight_mode_callback(self,msg):
@@ -101,29 +104,37 @@ class RectangleSetpoint(Node):
         control_mode.acceleration  = False
         control_mode.attitude = False
         control_mode.body_rate = False
-        control_mode.thrust_and_torque = False
-        control_mode.direct_actuator = False
+        # control_mode.thrust_and_torque = False
+        # control_mode.direct_actuator = False
         self.control_pub.publish(control_mode)
 
         # Start sending setpoints if in offboard mode
         if self.offboard_mode:
             # Trajectory setpoint - NED local world frame
-            contact_setpoint= ContactSetpoint()
+            contact_setpoint = ContactSetpoint()
+            trajectory_setpoint = TrajectorySetpoint()
+
+
             distance=self.calculate_distance(self.diagonal_trajectory[self.iter])
             if distance <= self.threshold:
                 print("Reached")
                 self.iter = (self.iter+1) % 4
+            else:
+                print("Not Reached")
+
             target_setpoints = self.diagonal_trajectory[self.iter]
             px=target_setpoints[0]
             py=target_setpoints[1]
             pz=target_setpoints[2]
             yaw=target_setpoints[3]
-            contact_setpoint.position=[px,py,pz]
-            contact_setpoint.yaw = np.radians(yaw)
-            contact_setpoint.desired_force = -5.0 # Newtons
-            contact_setpoint.contact=(distance<=self.threshold)
-            print(contact_setpoint.contact)
-            self.setpoint_pub.publish(contact_setpoint)
+            trajectory_setpoint.position=[px,py,pz]
+            trajectory_setpoint.yaw = np.radians(yaw)
+            if (distance<=self.threshold):
+                contact_setpoint.contact=True
+            if (distance>=1.0):
+                contact_setpoint.contact=False
+            self.setpoint_pub.publish(trajectory_setpoint)
+            self.contact_pub.publish(contact_setpoint)
         else:
             self.iter = 0
     

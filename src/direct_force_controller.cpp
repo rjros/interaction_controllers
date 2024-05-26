@@ -15,8 +15,8 @@
  */
 
 /**
- * @file admittance_controller.cpp
- * @brief Admittance force controller node, used for aerial interactions 
+ * @file direct_force_controller.cpp
+ * @brief Direct force controller node, used for aerial interactions 
  *
  * @author Ricardo Rosales Martinez
  */
@@ -28,13 +28,13 @@
 #include <iterator>
 
 
-DirectForceController :: DirectForceController() : Node("admittance_wrench_control") 
+DirectForceController :: DirectForceController() : Node("Direct_wrench_control")
 {
   
   //initialization ROS node
   RCLCPP_INFO(this->get_logger(), "%s\n","I am initializing the ROS node...");
   initNode();
-  initAdmittance();
+  initController();
 
 }
 
@@ -42,11 +42,12 @@ DirectForceController :: DirectForceController() : Node("admittance_wrench_contr
 void DirectForceController :: initNode()
 {
   int ms_time=10;//1000/rate_;
-  trajectory_sub_= this->create_subscription<interaction_msgs::msg::ContactSetpoint>("/raw/trajectory_setpoint", 10, 
-  std::bind(&DirectForceController::TrajectorySubCallback, this,_1));
   wrench_sub_= this->create_subscription<geometry_msgs::msg::WrenchStamped>("leptrino_force_sensor/sensor_wrench", 1, 
   std::bind(&DirectForceController::WrenchSubCallback, this,_1));
-  publisher_= this->create_publisher<px4_msgs::msg::TrajectorySetpoint>("/fmu/in/trajectory_setpoint",10);
+  trajectory_sub_= this->create_subscription<interaction_msgs::msg::ContactSetpoint>("/raw/trajectory_setpoint", 10, 
+  std::bind(&DirectForceController::ContactSubCallback, this,_1));
+  publisher_= this->create_publisher<px4_msgs::msg::PlanarThrustSetpoint>("/fmu/in/planar_thrust_setpoint",10);
+
   timer_ = this->create_wall_timer(std::chrono::milliseconds(ms_time), std::bind(&DirectForceController::publishMessage, this));
   
 }
@@ -55,41 +56,34 @@ void DirectForceController :: initNode()
 
 void DirectForceController :: publishMessage()
 {
-    computeAdmittance();
+    
+    if (contactRef_) {
+        
+        computeForceCmd();
 
-    auto message = std::make_unique<px4_msgs::msg::TrajectorySetpoint>();
+    }
+    else {
+
+        forceCmd_={0,0,0};
+
+    }
+
+    auto message = std::make_unique<px4_msgs::msg::PlanarThrustSetpoint>();
     message->timestamp = 0; // Set timestamp to microseconds
-    
-    // Final position should be the XD*=XD + f/k
-    //pushing only to the front X axis of the UAV, convert to Body Frame
-    // message->pose.position.x = std::round(positionSp_[0]*1000)/1000;   // Set position (example values)
-    // message->pose.position.y = positionSp_[1];
-    // message->pose.position.z = positionSp_[2];
+ 
+    message->force[0]=forceCmd_[0]; // x body frame
+    message->force[1]=forceCmd_[1]; // y  body frame
+    message->force[2]=0.0f; // z body frame
+    message->control_mode=contactRef_;
 
-    message->position[0]=positionSp_[0];
-    message->position[1]=positionSp_[1];
-    message->position[2]=positionSp_[2];
-    message->yaw=yawSp_;
-
-    RCLCPP_INFO(this->get_logger(), "x pos %f y pos %f z pos %f yaw %f\n" ,positionSp_[0],positionSp_[1],positionSp_[2],yawSp_);
-    
     publisher_->publish(std::move(message));
 
 
 }
 
-void DirectForceController :: TrajectorySubCallback(const interaction_msgs::msg::ContactSetpoint::SharedPtr msg )
+void DirectForceController :: ContactSubCallback(const interaction_msgs::msg::ContactSetpoint::SharedPtr msg )
 {
-  auto position =msg->position;
-  auto yaw = msg->yaw;
   contactRef_=msg->contact;
-  yawRf_ = yaw;
-  trajectoryRef_={position[0],position[1],position[2],yawSp_};
-
-
-  // RCLCPP_INFO(this->get_logger(), "Force X %f Force Y %f Force Z %f", forceRef_[0], forceRef_[1], forceRef_[2]);
-
-  // std::copy(std::begin(position),std::end(position),std::begin(refPosition_));
 
 }
 
@@ -97,7 +91,7 @@ void DirectForceController :: WrenchSubCallback(const geometry_msgs::msg::Wrench
 {
   auto force= msg->wrench.force;
   auto torque= msg->wrench.torque;
-
+  
   // Assign force and torque vectors directly to refForce_ and refTorque_
   forceRef_ = {force.x, force.y, force.z};
   torqueRef_ = {torque.x, torque.y, torque.z};
@@ -106,41 +100,44 @@ void DirectForceController :: WrenchSubCallback(const geometry_msgs::msg::Wrench
 //// ROS Functions END ////
 
 
-void DirectForceController::initAdmittance()
+void DirectForceController::initController()
 {
   // Get parameters from config file regarding the M, D and K matrices
-  K_x=15;
-  K_z=1.2;
-  K_yaw=0.09;  
-  forceSp_=-3;
+  kp_=0.08;
+  ki_=0.1;
+  forceSp_=-3; // in newtons 
+  max_thrust_= 9.00; // max force per fans in newtons
 
-  RCLCPP_INFO(this->get_logger(), "%s\n","Initializing admittance controller...");// string followed by a newline
+  // RCLCPP_INFO(this->get_logger(), "%s\n","Initializing force controller...");// string followed by a newline
+
+  efForce_=forceSp_/max_thrust_; //feedforward term
 
 }
-void DirectForceController::computeAdmittance()
+void DirectForceController::computeForceCmd()
 {
-  // RCLCPP_INFO(this->get_logger(),"%s\n","Computing admittance controller...");
-  RCLCPP_INFO(this->get_logger(), "Force X %f Force Y %f Force Z %f", forceRef_[0], forceRef_[1], forceRef_[2]);
-
-  //// Force in the axis of the manipulator ////
-  /// Rotate wrt to the Yaw (B)
-  if(!(forceRef_[2]<-1.000))
-  {
-    positionSp_[0] = trajectoryRef_[0] ;//+ (forceRef_[2]-forceSp_)/K_;
-    positionSp_[1] = trajectoryRef_[1] ;//positionRef_[1]; 
-    positionSp_[2] = trajectoryRef_[2] ;//positionRef_[2];
-    yawSp_=0;
-  }
-
-  else 
-  {
-    positionSp_[0] = trajectoryRef_[0] - (forceSp_-forceRef_[2])/K_x; // current positon 
-    positionSp_[1] = trajectoryRef_[1];// + (forceRef_[1])/100;//positionRef_[1]; 
-    positionSp_[2] = trajectoryRef_[2]+ (forceRef_[0])/K_z;// + (forceRef_[2]-0)/K_;//positionRef_[2];
-    yawSp_=((trajectoryRef_[3]-forceRef_[1]/K_yaw))*3.14/180;
-
-  }
-
+    if (firstIteration_)
+    {
+      dt=0.01;
+      firstIteration_=false;
+      prevTime_=clock->now();
+      eiForce_=0;
+    } else {
+        currentTime_ = clock->now();
+        rclcpp::Duration duration = currentTime_ - prevTime_;
+        prevTime_=clock->now();
+        dt = duration.seconds(); //duration.seconds();
+    }
+    //prevTime_= currentTime_;
+    eiForce_+= ki_*epForce_*dt;
+    if (abs(eiForce_)>1)
+    {
+      eiForce_=0;
+    }
+    RCLCPP_INFO(this->get_logger(), "Force X %f Force Y %f Force Z %f", dt, eiForce_, forceRef_[2]);
+    epForce_=forceSp_-forceRef_[2]; //force in the z axis
+    forceCmd_[0]= -efForce_ - kp_ * (epForce_) - eiForce_;
+    forceCmd_[1]= 0.0;
+    forceCmd_[2]= 0.0;
 
 }
 
@@ -148,7 +145,6 @@ DirectForceController :: ~DirectForceController()
 {
  RCLCPP_INFO(this->get_logger(), "Shutting down node.");
 }
-
 
 int main(int argc, char ** argv)
 {

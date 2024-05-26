@@ -37,6 +37,7 @@ ament_target_dependencies(direct_force_controller rclcpp geometry_msgs px4_msgs 
 ## Install Cpp executables in the /ros_ws2/install/...
 install(TARGETS
   admittance_controller
+  direct_force_controller
   DESTINATION lib/${PROJECT_NAME}
 )
 
