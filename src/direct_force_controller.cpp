@@ -84,6 +84,7 @@ void DirectForceController :: publishMessage()
 void DirectForceController :: ContactSubCallback(const interaction_msgs::msg::ContactSetpoint::SharedPtr msg )
 {
   contactRef_=msg->contact;
+  forceSp_=msg->desired_force;
 
 }
 
@@ -105,7 +106,7 @@ void DirectForceController::initController()
   // Get parameters from config file regarding the M, D and K matrices
   kp_=0.08;
   ki_=0.1;
-  forceSp_=-3; // in newtons 
+  // forceSp_=-6; // in newtons 
   max_thrust_= 9.00; // max force per fans in newtons
 
   // RCLCPP_INFO(this->get_logger(), "%s\n","Initializing force controller...");// string followed by a newline

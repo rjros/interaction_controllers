@@ -47,6 +47,7 @@ ament_python_install_package(${PROJECT_NAME})
 # Install Python scripts
 install(PROGRAMS
   scripts/simple_interaction_setpoints.py
+  scripts/multiple_point_interaction.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

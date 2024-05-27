@@ -25,12 +25,14 @@ from interaction_msgs.msg import ContactSetpoint
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 import numpy as np
 import math 
+import time
 
 
-class RectangleSetpoint(Node):
+
+class WallSetpoint(Node):
 
     def __init__(self):
-        super().__init__('rectangle_setpoint')
+        super().__init__('multiple_point_interaction')
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
@@ -41,39 +43,41 @@ class RectangleSetpoint(Node):
         self.control_pub = self.create_publisher(OffboardControlMode, '/fmu/in/offboard_control_mode', 10)
         self.contact_pub = self.create_publisher(ContactSetpoint, '/raw/trajectory_setpoint', 10)
         self.setpoint_pub = self.create_publisher(TrajectorySetpoint, '/fmu/in/trajectory_setpoint', 10)
-
-
         self.mode_sub = self.create_subscription(VehicleControlMode, '/fmu/out/vehicle_control_mode', self.flight_mode_callback, qos_profile)
         self.odometry_pub =self.create_subscription(VehicleOdometry,'/fmu/out/vehicle_odometry',self.odometry_callback,qos_profile)
 
-        # Other parameters
-        self.origin = np.array([0, 0, -1])
-        self.x_length = 1.5 # [m]
-        self.y_length = 0.8 # [m]
-        self.z=np.array([-1.0,-1.0,-1.0,-1.0]) # [m]
+
+        # Trajectory setpoints 
         self.odometry=VehicleOdometry()
-        self.threshold= 0.20 #tolerance to target position in m
-
-        
-        # Number of points between corners
-        self.num_points = 2 # int 
-        self.yaw=np.array([0,0,0,0]) # deg
-        self.iter=0
-        self.total_points=4*self.num_points
-
-        # Yaw for each side of the rectangle
         self.offboard_mode = False
-        # self.create_shape_with_points()
-        # Set publish rate timer
-        pub_rate = 100  # Hz. Set rate of > 2Hz for OffboardControlMode 
+        self.threshold= 0.20 #tolerance to target position in m
+        self.yaw_sp= 0.0 # wall orientation
+        # Contact Variables
+        self.force = -3.0 #desired force in Newtons
+        self.iter=0
+        self.start_time=0
+        self.current_time=0
+        self.contact_time=5 # s
+        self.fly_time=1 # s
+        self.wait= False
+        self.wait_time=0
+
+
+
         # Adjust the timer to increase publishing speed of setpoints
+        pub_rate = 100  # Hz. Set rate of > 2Hz for OffboardControlMode 
         self.timer = self.create_timer(1/pub_rate, self.timer_callback)
 
-        self.diagonal_trajectory = np.array([
-            [4.5, 0.0, -1.6, 0],
-            [4.5, 0.0, -1.6, 0],
-            [4.5, 0.0, -1.6, 0],
-            [4.5, 0.0, -1.6, 0]
+        # [x,y,z,time,contact] 6
+        self.wall_setpoints = np.array([
+            [4.0, 0.0, -1.6, 0,self.fly_time,0.0],
+            [4.7, 0.0, -1.6, 1,self.contact_time,self.force],
+            [4.0, 0.5, -1.6, 0,self.fly_time,0.0],
+            [4.7, 0.5, -1.6, 1,self.contact_time,self.force],
+            [4.0, 1.0, -1.6, 0,self.fly_time,0.0],
+            [4.7, 1.0, -1.6, 1,self.contact_time,self.force],
+            [4.0, 1.5, -1.6, 0,self.fly_time,0.0],
+            [4.7, 1.5, -1.6, 1,self.contact_time,self.force] 
         ])
     
     def flight_mode_callback(self,msg):
@@ -107,41 +111,55 @@ class RectangleSetpoint(Node):
         # control_mode.thrust_and_torque = False
         # control_mode.direct_actuator = False
         self.control_pub.publish(control_mode)
+        contact_setpoint = ContactSetpoint()
+        trajectory_setpoint = TrajectorySetpoint()
 
         # Start sending setpoints if in offboard mode
         if self.offboard_mode:
             # Trajectory setpoint - NED local world frame
-            contact_setpoint = ContactSetpoint()
-            trajectory_setpoint = TrajectorySetpoint()
+            
+            if(self.wait):
+                self.current_time=time.time()
+                if(self.current_time-self.start_time>=self.wait_time):
+                    self.wait=False
+                else:
+                    self.iter=self.iter-1
+
+            setpoints = self.wall_setpoints[self.iter]
+            px = setpoints[0]
+            py = setpoints[1]
+            pz = setpoints[2]
+            trajectory_setpoint.position = [px, py, pz]
+            trajectory_setpoint.yaw = self.yaw_sp
+            
+            contact_setpoint.desired_force = self.force
+
+            self.wait_time=setpoints[4]
+            distance=self.calculate_distance(self.wall_setpoints[self.iter])
+            if (distance <= self.threshold):
+                # print("Reached %d",self.iter)
+                self.wait=True
+                contact_setpoint.contact=(setpoints[3]>0)
+                self.iter = (self.iter+1) % 8
+                self.start_time=time.time()
 
 
-            distance=self.calculate_distance(self.diagonal_trajectory[self.iter])
-            if distance <= self.threshold:
-                print("Reached")
-                self.iter = (self.iter+1) % 4
-            else:
-                print("Not Reached")
-
-            target_setpoints = self.diagonal_trajectory[self.iter]
-            px=target_setpoints[0]
-            py=target_setpoints[1]
-            pz=target_setpoints[2]
-            yaw=target_setpoints[3]
-            trajectory_setpoint.position=[px,py,pz]
-            trajectory_setpoint.yaw = np.radians(yaw)
-            if (distance<=self.threshold):
-                contact_setpoint.contact=True
-            if (distance>=1.0):
-                contact_setpoint.contact=False
+            # else:
+            #     # print("Not Reached %d ",self.iter)
             self.setpoint_pub.publish(trajectory_setpoint)
             self.contact_pub.publish(contact_setpoint)
         else:
             self.iter = 0
+            self.wait=False
+            contact_setpoint.contact=False
+
+
+
     
 def main(args=None):
     # print('Hi from Offboard_programs.')
     rclpy.init(args=args)
-    offboard_control=RectangleSetpoint()
+    offboard_control=WallSetpoint()
     rclpy.spin(offboard_control)
     offboard_control.destroy_node()
     rclpy.shutdown()
