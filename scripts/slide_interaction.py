@@ -26,9 +26,6 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPo
 import numpy as np
 import math 
 import time
-from tf_transformations import  euler_from_quaternion
-
-
 
 
 
@@ -57,15 +54,14 @@ class WallSetpoint(Node):
         self.yaw_sp= 0.0 # wall orientation
         # Contact Variables
         self.force1 = -3.0 #desired force in Newtons
-        self.force2 = -5.0 #desired force in Newtons
-        self.force3 = -6.0 #desired force in Newtons
-        self.force3 = -8.0 #desired force in Newtons
+        self.force2 = -3.0 #desired force in Newtons
+        self.force3 = -3.0 #desired force in Newtons
 
 
         self.iter=0
         self.start_time=0
         self.current_time=0
-        self.contact_time=10 # s
+        self.contact_time=2 # s
         self.fly_time=1 # s
         self.wait= False
         self.wait_time=0
@@ -79,14 +75,8 @@ class WallSetpoint(Node):
         self.wall_setpoints = np.array([
             [3.8, 0.0, -1.6, 0,self.fly_time,0.0],
             [4.56, 0.0, -1.6, 1,self.contact_time,self.force1],
-            [3.8, 0.0, -1.6, 0,self.fly_time,0.0],
-            [3.8, 0.5, -1.6, 0,self.fly_time,0.0],
             [4.56, 0.5, -1.6, 1,self.contact_time,self.force2],
-            [3.8, 0.5, -1.6, 0,self.fly_time,0.0],
-            [3.8, 1.0, -1.6, 0,self.fly_time,0.0],
             [4.56, 1.0, -1.6, 1,self.contact_time,self.force3],
-            [3.8, 1.0, -1.6, 0,self.fly_time,0.0],
-            [3.8, 1.5, -1.6, 0,self.fly_time,0.0],
             [4.56, 1.5, -1.6, 1,self.contact_time,self.force1],
             [3.8, 1.5, -1.6, 0,self.fly_time,0.0]
         ])
@@ -133,8 +123,7 @@ class WallSetpoint(Node):
                 if(self.current_time-self.start_time>=self.wait_time):
                     self.wait=False
                     self.reached_flag=False
-                    contact_setpoint.contact=False
-                    self.iter = (self.iter+1) % 12
+                    self.iter = (self.iter+1) % 6
 
             setpoints = self.wall_setpoints[self.iter]
             px = setpoints[0]
@@ -156,11 +145,8 @@ class WallSetpoint(Node):
                 self.start_time=time.time()
             if (self.reached_flag):
                 contact_setpoint.contact=bool(setpoints[3]>0)
-            orientation=self.odometry.q
-            euler=euler_from_quaternion(orientation)
-            yaw=math.degrees(euler[2])
-            print(yaw)
-            self.contact_pub.yaw=yaw
+            print(self.iter)
+            contact_setpoint.contact=bool(setpoints[3]>0)
             self.setpoint_pub.publish(trajectory_setpoint)
             self.contact_pub.publish(contact_setpoint)
         else:

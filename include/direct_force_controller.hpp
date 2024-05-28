@@ -74,9 +74,7 @@ class DirectForceController : public rclcpp::Node {
         //Internal variables
 
         std::vector<double> forceCmd_ = std::vector<double>(3,0);
-        float yawRf_;
-        float yawSp_; 
-
+        std::vector<double> torqueCmd_ = std::vector<double>(3,0);
 
         std::vector<double>quaternionRef_ = std::vector<double>(4,0);
         std::vector<double>quaternionSp_ = std::vector<double>(4,0);
@@ -89,17 +87,23 @@ class DirectForceController : public rclcpp::Node {
         // Using a PI controller for the force
         double kp_{0};
         double ki_{0};
+        double kyp_{0};
+
         double dt_={0};
 
         double epForce_{0};
         double eiForce_{0};
         double efForce_{0};
+        double yawSp_{0}; 
+        double epYaw_{0};
+
         double max_thrust_={0};
 
 
         int rate_;
         // Force Control internal variables 
         double forceSp_;
+        double yawRef_;
         bool contactRef_{false};
 
 

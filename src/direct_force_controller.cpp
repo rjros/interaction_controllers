@@ -65,6 +65,7 @@ void DirectForceController :: publishMessage()
     else {
 
         forceCmd_={0,0,0};
+        torqueCmd_={0,0,0};
 
     }
 
@@ -74,6 +75,12 @@ void DirectForceController :: publishMessage()
     message->force[0]=forceCmd_[0]; // x body frame
     message->force[1]=forceCmd_[1]; // y  body frame
     message->force[2]=0.0f; // z body frame
+
+    message->torque[0]=torqueCmd_[0]; // torque x body frame
+    message->torque[1]=torqueCmd_[1]; // torque y body frame
+    message->torque[2]=torqueCmd_[2]; // torque z body frame
+
+
     message->control_mode=contactRef_;
 
     publisher_->publish(std::move(message));
@@ -85,6 +92,7 @@ void DirectForceController :: ContactSubCallback(const interaction_msgs::msg::Co
 {
   contactRef_=msg->contact;
   forceSp_=msg->desired_force;
+  yawRef_=msg->yaw;
 
 }
 
@@ -113,6 +121,7 @@ void DirectForceController::initController()
 
   efForce_=forceSp_/max_thrust_; //feedforward term
 
+  kyp_=0.1;
 }
 void DirectForceController::computeForceCmd()
 {
@@ -134,11 +143,20 @@ void DirectForceController::computeForceCmd()
     {
       eiForce_=0;
     }
-    RCLCPP_INFO(this->get_logger(), "Force X %f Force Y %f Force Z %f", dt, eiForce_, forceRef_[2]);
+    // RCLCPP_INFO(this->get_logger(), "Force X %f Force Y %f Force Z %f", dt, eiForce_, forceRef_[2]);
+    
+    yawSp_=0;
     epForce_=forceSp_-forceRef_[2]; //force in the z axis
+    epYaw_ = yawSp_-yawRef_;
     forceCmd_[0]= -efForce_ - kp_ * (epForce_) - eiForce_;
     forceCmd_[1]= 0.0;
     forceCmd_[2]= 0.0;
+    
+    torqueCmd_[0] = -kyp_*epYaw_; 
+    torqueCmd_[1] = 0;
+    torqueCmd_[2] = 0;
+    RCLCPP_INFO(this->get_logger(), "Force Z %f Yaw %f ", forceRef_[2], yawRef_);
+
 
 }
 
