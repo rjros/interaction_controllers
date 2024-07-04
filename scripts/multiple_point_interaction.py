@@ -77,18 +77,22 @@ class WallSetpoint(Node):
 
         # [x,y,z,time,contact] 6
         self.wall_setpoints = np.array([
-            [3.8, 0.0, -1.6, 0,self.fly_time,0.0],
-            [4.56, 0.0, -1.6, 1,self.contact_time,self.force1],
-            [3.8, 0.0, -1.6, 0,self.fly_time,0.0],
-            [3.8, 0.5, -1.6, 0,self.fly_time,0.0],
-            [4.56, 0.5, -1.6, 1,self.contact_time,self.force2],
-            [3.8, 0.5, -1.6, 0,self.fly_time,0.0],
-            [3.8, 1.0, -1.6, 0,self.fly_time,0.0],
-            [4.56, 1.0, -1.6, 1,self.contact_time,self.force3],
-            [3.8, 1.0, -1.6, 0,self.fly_time,0.0],
-            [3.8, 1.5, -1.6, 0,self.fly_time,0.0],
-            [4.56, 1.5, -1.6, 1,self.contact_time,self.force1],
-            [3.8, 1.5, -1.6, 0,self.fly_time,0.0]
+            [4.2, 0.0, -1.6, 0,self.fly_time,0.0],
+            [4.45, 0.0, -1.6, 0,0,0],
+            [4.45, 0.0, -1.6, 1,self.contact_time,self.force1],
+            [4.2, 0.0, -1.6, 0,self.fly_time,0.0],
+            [4.2, 0.5, -1.6, 0,self.fly_time,0.0],
+            [4.45, 0.5, -1.6, 0,0,0],
+            [4.45, 0.5, -1.6, 1,self.contact_time,self.force2],
+            [4.2, 0.5, -1.6, 0,self.fly_time,0.0],
+            [4.2, 1.0, -1.6, 0,self.fly_time,0.0],
+            [4.45, 1.0, -1.6, 0,0,0],
+            [4.45, 1.0, -1.6, 1,self.contact_time,self.force3],
+            [4.2, 1.0, -1.6, 0,self.fly_time,0.0],
+            [4.2, 1.5, -1.6, 0,self.fly_time,0.0],
+            [4.45, 1.5, -1.6, 0,0,0],
+            [4.45, 1.5, -1.6, 1,self.contact_time,self.force1],
+            [4.2, 1.5, -1.6, 0,self.fly_time,0.0]
         ])
     
     def flight_mode_callback(self,msg):
