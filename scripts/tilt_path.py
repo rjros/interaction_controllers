@@ -20,22 +20,18 @@ __version__ = "1.0"
 
 import rclpy 
 from rclpy.node import Node
-from px4_msgs.msg import VehicleControlMode, VehicleOdometry, OffboardControlMode, TrajectorySetpoint
-from interaction_msgs.msg import ContactSetpoint 
+from px4_msgs.msg import VehicleControlMode, VehicleOdometry, OffboardControlMode, TrajectorySetpoint,ThrustVectoringCommand
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 import numpy as np
 import math 
 import time
-from tf_transformations import  euler_from_quaternion
 
 
 
-
-
-class WallSetpoint(Node):
+class ExperimentPath(Node):
 
     def __init__(self):
-        super().__init__('multiple_point_interaction')
+        super().__init__('tilt_path')
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
@@ -44,8 +40,9 @@ class WallSetpoint(Node):
         )
         # Publishers and Subscribers
         self.control_pub = self.create_publisher(OffboardControlMode, '/fmu/in/offboard_control_mode', 10)
-        self.contact_pub = self.create_publisher(ContactSetpoint, '/raw/trajectory_setpoint', 10)
         self.setpoint_pub = self.create_publisher(TrajectorySetpoint, '/fmu/in/trajectory_setpoint', 10)
+        self.thrust_vectoring_setpoint_pub = self.create_publisher(ThrustVectoringCommand, '/fmu/in/thrust_vectoring_setpoint', 10)
+
         self.mode_sub = self.create_subscription(VehicleControlMode, '/fmu/out/vehicle_control_mode', self.flight_mode_callback, qos_profile)
         self.odometry_pub =self.create_subscription(VehicleOdometry,'/fmu/out/vehicle_odometry',self.odometry_callback,qos_profile)
 
@@ -53,13 +50,8 @@ class WallSetpoint(Node):
         # Trajectory setpoints 
         self.odometry=VehicleOdometry()
         self.offboard_mode = False
-        self.threshold= 0.10 #tolerance to target position in m
-        self.yaw_sp= 0.0 # wall orientation
-        # Contact Variables
-        self.force1 = -3.0 #desired force in Newtons
-        self.force2 = -5.0 #desired force in Newtons
-        self.force3 = -6.0 #desired force in Newtons
-        self.force3 = -8.0 #desired force in Newtons
+        self.threshold= 0.05 #tolerance to target position in m
+        self.yaw_sp= math.radians(90.0) # wall orientation
 
 
         self.iter=0
@@ -75,26 +67,22 @@ class WallSetpoint(Node):
         pub_rate = 100  # Hz. Set rate of > 2Hz for OffboardControlMode 
         self.timer = self.create_timer(1/pub_rate, self.timer_callback)
 
-        # [x,y,z,time,contact] 6
-        self.wall_setpoints = np.array([
-            [3.8, 0.0, -1.6, 0,self.fly_time,0.0],
-            [4.1, 0.0, -1.6, 0,0,0],
-            [4.1, 0.0, -1.6, 1,self.contact_time,self.force1],
-            [3.8, 0.0, -1.6, 0,self.fly_time,0.0],
-            [3.8, 0.5, -1.6, 0,self.fly_time,0.0],
-            [4.1, 0.5, -1.6, 0,0,0],
-            [4.1, 0.5, -1.6, 1,self.contact_time,self.force2],
-            [3.8, 0.5, -1.6, 0,self.fly_time,0.0],
-            [3.8, 1.0, -1.6, 0,self.fly_time,0.0],
-            [4.1, 1.0, -1.6, 0,0,0],
-            [4.1, 1.0, -1.6, 1,self.contact_time,self.force3],
-            [3.8, 1.0, -1.6, 0,self.fly_time,0.0],
-            [3.8, 1.5, -1.6, 0,self.fly_time,0.0],
-            [4.1, 1.5, -1.6, 0,0,0],
-            [4.1, 1.5, -1.6, 1,self.contact_time,self.force1],
-            [3.8, 1.5, -1.6, 0,self.fly_time,0.0]
+        # [x,y,z,time] 6
+        # self.vehicle_setpoints = np.array([
+        #     [0.0, 0.0,-3.0 ,2.0],
+        #     [2.0, 0.0,-3.0 ,2.0],
+        #     [0.0, 0.0,-3.0 ,2.0],
+        #     [0.0, 2.0,-3.0 ,2.0],
+        #     [0.0, 0.0,-3.0 ,2.0]
+        # ])
+
+        self.vehicle_setpoints = np.array([
+            [0.0, 0.0,-3.0 ,2.0,  0.0,  0.0],
+            [0.0, 5.0,-3.0 ,2.0,  0.0,  0.0],
+            [0.0, 0.0,-3.0 ,2.0,  90.0, 90.0],
+            [0.0, 5.0,-3.0 ,2.0, -90.0,-90.0],
         ])
-    
+
     def flight_mode_callback(self,msg):
         self.offboard_mode=msg.flag_control_offboard_enabled
     
@@ -125,52 +113,50 @@ class WallSetpoint(Node):
         # control_mode.thrust_and_torque = False
         # control_mode.direct_actuator = False
         self.control_pub.publish(control_mode)
-        contact_setpoint = ContactSetpoint()
         trajectory_setpoint = TrajectorySetpoint()
+        thrust_vectoring_setpoint = ThrustVectoringCommand()
 
         # Start sending setpoints if in offboard mode
         if self.offboard_mode:
             # Trajectory setpoint - NED local world frame
             
             if(self.wait):
-                self.current_time=time.time()
+                # self.current_time=time.time()
+                self.current_time = self.get_clock().now().nanoseconds / 1e9
                 if(self.current_time-self.start_time>=self.wait_time):
                     self.wait=False
                     self.reached_flag=False
-                    contact_setpoint.contact=False
-                    self.iter = (self.iter+1) % 12
+                    self.iter = (self.iter + 1) % len(self.vehicle_setpoints)
 
-            setpoints = self.wall_setpoints[self.iter]
+            setpoints = self.vehicle_setpoints[self.iter]
             px = setpoints[0]
             py = setpoints[1]
             pz = setpoints[2]
+            self.wait_time=setpoints[3]
+            # Tilt angles in radians
+            thrust_vectoring_setpoint.tilt_angle[0] = math.radians(setpoints[4])
+            thrust_vectoring_setpoint.tilt_angle[1] = math.radians(setpoints[5])
+
             trajectory_setpoint.position = [px, py, pz]
             trajectory_setpoint.yaw = self.yaw_sp
-            
-            contact_setpoint.desired_force = setpoints[5]
-
-            self.wait_time=setpoints[4]
-            distance=self.calculate_distance(self.wall_setpoints[self.iter])
+            distance=self.calculate_distance(self.vehicle_setpoints[self.iter])
             if (distance <= self.threshold):
                 self.reached_flag = True 
-                print("Reached")
+                # print("Reached")
 
             if (self.reached_flag and not self.wait):
                 self.wait=True
-                self.start_time=time.time()
-            if (self.reached_flag):
-                contact_setpoint.contact=bool(setpoints[3]>0)
+                # self.start_time=time.time()
+                self.start_time = self.get_clock().now().nanoseconds / 1e9
+            
             orientation=self.odometry.q
-            euler=euler_from_quaternion(orientation)
-            yaw=math.degrees(euler[2])
-            print(yaw)
-            self.contact_pub.yaw=yaw
             self.setpoint_pub.publish(trajectory_setpoint)
-            self.contact_pub.publish(contact_setpoint)
+            self.thrust_vectoring_setpoint_pub.publish(thrust_vectoring_setpoint)
         else:
+            thrust_vectoring_setpoint.tilt_angle = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            self.thrust_vectoring_setpoint_pub.publish(thrust_vectoring_setpoint)
             self.iter = 0
             self.wait=False
-            contact_setpoint.contact=False
 
 
 
@@ -178,7 +164,7 @@ class WallSetpoint(Node):
 def main(args=None):
     # print('Hi from Offboard_programs.')
     rclpy.init(args=args)
-    offboard_control=WallSetpoint()
+    offboard_control=ExperimentPath()
     rclpy.spin(offboard_control)
     offboard_control.destroy_node()
     rclpy.shutdown()

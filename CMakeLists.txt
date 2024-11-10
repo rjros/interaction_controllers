@@ -49,6 +49,9 @@ install(PROGRAMS
   scripts/simple_interaction_setpoints.py
   scripts/multiple_point_interaction.py
   scripts/slide_interaction.py
+  scripts/experiment_path.py
+  scripts/tilt_path.py
+
 
   DESTINATION lib/${PROJECT_NAME}
 )
