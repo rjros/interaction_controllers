@@ -51,7 +51,7 @@ class ExperimentPath(Node):
         self.odometry=VehicleOdometry()
         self.offboard_mode = False
         self.threshold= 0.05 #tolerance to target position in m
-        self.yaw_sp= math.radians(90.0) # wall orientation
+        self.yaw_sp= math.radians(00.0) # wall orientation
 
 
         self.iter=0
@@ -78,9 +78,11 @@ class ExperimentPath(Node):
 
         self.vehicle_setpoints = np.array([
             [0.0, 0.0,-3.0 ,2.0,  0.0,  0.0],
-            [0.0, 5.0,-3.0 ,2.0,  0.0,  0.0],
-            [0.0, 0.0,-3.0 ,2.0,  90.0, 90.0],
-            [0.0, 5.0,-3.0 ,2.0, -90.0,-90.0],
+            [2.0, 0.0,-3.0 ,2.0,  0.0,  0.0],
+            [0.0, 0.0,-3.0 ,2.0,  0.0,  0.0],
+            [0.0, 2.0,-3.0 ,2.0, -90.0, 90.0],
+            [0.0, 2.0,-3.0 ,1.0,  0.0,  0.0],
+            [0.0, 0.0,-3.0 ,2.0,  90.0,-90.0],
         ])
 
     def flight_mode_callback(self,msg):
