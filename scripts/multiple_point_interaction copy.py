@@ -118,11 +118,67 @@ class WallSetpoint(Node):
     
 
     def timer_callback(self):
+        # Set and publish control flags
+        control_mode = OffboardControlMode()
+        # Timestamp is automatically set inside PX4
+        control_mode.timestamp = 0
+        # First field that has a non-zero value (from top to bottom)
+        # defines what valid estimate is required
+        control_mode.position = True
+        control_mode.velocity = False
+        control_mode.acceleration  = False
+        control_mode.attitude = False
+        control_mode.body_rate = False
+        # control_mode.thrust_and_torque = False
+        # control_mode.direct_actuator = False
+        self.control_pub.publish(control_mode)
+        contact_setpoint = ContactSetpoint()
+        trajectory_setpoint = TrajectorySetpoint()
 
-        contact_setpoint = ContactSetpoint()  
-        contact_setpoint.desired_force = -3.0
-        contact_setpoint.contact=bool(self.force_mode)
-        self.contact_pub.publish(contact_setpoint)
+        # Start sending setpoints if in offboard mode
+        if self.offboard_mode:
+            # Trajectory setpoint - NED local world frame
+            
+            if(self.wait):
+                self.current_time=time.time()
+                if(self.current_time-self.start_time>=self.wait_time):
+                    self.wait=False
+                    self.reached_flag=False
+                    contact_setpoint.contact=False
+                    self.iter = (self.iter+1) % 12
+
+            setpoints = self.wall_setpoints[self.iter]
+            px = setpoints[0]
+            py = setpoints[1]
+            pz = setpoints[2]
+            trajectory_setpoint.position = [px, py, pz]
+            trajectory_setpoint.yaw = self.yaw_sp
+            
+            contact_setpoint.desired_force = setpoints[5]
+
+            self.wait_time=setpoints[4]
+            distance=self.calculate_distance(self.wall_setpoints[self.iter])
+            if (distance <= self.threshold):
+                self.reached_flag = True 
+                print("Reached")
+
+            if (self.reached_flag and not self.wait):
+                self.wait=True
+                self.start_time=time.time()
+            if (self.reached_flag):
+                contact_setpoint.contact=bool(setpoints[3]>0)
+            orientation=self.odometry.q
+            euler=euler_from_quaternion(orientation)
+            yaw=math.degrees(euler[2])
+            print(yaw)
+            self.contact_pub.yaw=yaw
+            self.setpoint_pub.publish(trajectory_setpoint)
+            self.contact_pub.publish(contact_setpoint)
+        else:
+            self.iter = 0
+            self.wait=False
+            contact_setpoint.contact=False
+
 
 
     

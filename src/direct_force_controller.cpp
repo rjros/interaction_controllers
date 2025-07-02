@@ -44,8 +44,10 @@ void DirectForceController :: initNode()
   int ms_time=10;//1000/rate_;
   wrench_sub_= this->create_subscription<geometry_msgs::msg::WrenchStamped>("leptrino_force_sensor/sensor_wrench", 1, 
   std::bind(&DirectForceController::WrenchSubCallback, this,_1));
+
   trajectory_sub_= this->create_subscription<interaction_msgs::msg::ContactSetpoint>("/raw/trajectory_setpoint", 10, 
   std::bind(&DirectForceController::ContactSubCallback, this,_1));
+
   publisher_= this->create_publisher<px4_msgs::msg::PlanarThrustSetpoint>("/fmu/in/planar_thrust_setpoint",10);
 
   timer_ = this->create_wall_timer(std::chrono::milliseconds(ms_time), std::bind(&DirectForceController::publishMessage, this));
@@ -58,16 +60,27 @@ void DirectForceController :: publishMessage()
 {
     
     if (contactRef_) {
-        
-        computeForceCmd();
+
+        forceCmd_={-0.5,0,0};
+        torqueCmd_={0,0,0};
+        RCLCPP_INFO(this->get_logger(), "Force Controller Enabled");
+
+
+
+        //computeForceCmd();
 
     }
     else {
 
-        forceCmd_={0,0,0};
+        forceCmd_={0.0,0,0};
         torqueCmd_={0,0,0};
+        RCLCPP_INFO(this->get_logger(), "Force Controller Disabled");
+
 
     }
+
+
+
 
     auto message = std::make_unique<px4_msgs::msg::PlanarThrustSetpoint>();
     message->timestamp = 0; // Set timestamp to microseconds
@@ -81,7 +94,7 @@ void DirectForceController :: publishMessage()
     message->torque[2]=torqueCmd_[2]; // torque z body frame
 
 
-    message->control_mode=contactRef_;
+    // message->control_mode=contactRef_;
 
     publisher_->publish(std::move(message));
 
@@ -92,7 +105,7 @@ void DirectForceController :: ContactSubCallback(const interaction_msgs::msg::Co
 {
   contactRef_=msg->contact;
   forceSp_=msg->desired_force;
-  yawRef_=msg->yaw;
+
 
 }
 
@@ -106,7 +119,8 @@ void DirectForceController :: WrenchSubCallback(const geometry_msgs::msg::Wrench
   torqueRef_ = {torque.x, torque.y, torque.z};
 }
 
-//// ROS Functions END ////
+
+
 
 
 void DirectForceController::initController()
@@ -146,7 +160,7 @@ void DirectForceController::computeForceCmd()
     // RCLCPP_INFO(this->get_logger(), "Force X %f Force Y %f Force Z %f", dt, eiForce_, forceRef_[2]);
     
     yawSp_=0;
-    epForce_=forceSp_-forceRef_[2]; //force in the z axis
+    epForce_=forceSp_-forceRef_[2]; //force in the z axis of the sensor
     epYaw_ = yawSp_-yawRef_;
     forceCmd_[0]= -efForce_ - kp_ * (epForce_) - eiForce_;
     forceCmd_[1]= 0.0;

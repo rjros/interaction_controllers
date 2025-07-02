@@ -31,6 +31,7 @@
 #include <geometry_msgs/msg/wrench_stamped.hpp> //leptrino wrench  f and torque*
 
 #include <px4_msgs/msg/planar_thrust_setpoint.hpp>
+
 #include <interaction_msgs/msg/contact_setpoint.hpp>
 
 #include <Eigen/Dense> // msg type to be published with correction
@@ -56,12 +57,19 @@ class DirectForceController : public rclcpp::Node {
         //ROS Related callbacks
         void ContactSubCallback(const interaction_msgs::msg::ContactSetpoint::SharedPtr msg);
         void WrenchSubCallback(const geometry_msgs::msg::WrenchStamped::SharedPtr msg);
+        // void ForceModeSubCallback(const px4_msgs::msg::ForceControlMode::SharedPtr msg);
+
         void publishMessage();
         
         //// ROS variables ////
         rclcpp::Subscription<interaction_msgs::msg::ContactSetpoint>::SharedPtr trajectory_sub_; // Later change to PX4 msg sub type
+        // rclcpp::Subscription<px4_msgs::msg::ForceControlMode>::SharedPtr force_mode_sub_; //PX4 msg sub type
+
         rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr wrench_sub_; //PX4 msg sub type
         rclcpp::Publisher<px4_msgs::msg::PlanarThrustSetpoint>::SharedPtr publisher_;
+        //Check current force control mode    
+        //rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr wrench_sub_; //PX4 msg sub type
+
 
   
         rclcpp::TimerBase::SharedPtr timer_;
@@ -82,6 +90,8 @@ class DirectForceController : public rclcpp::Node {
         std::vector<double> forceRef_ = std::vector<double>(3,0);
         std::vector<double>torqueRef_ = std::vector<double>(3,0);
         std::vector<double> eulerRef_ = std::vector<double>(3,0);
+
+        int8_t force_flag_{0};
         
 
         // Using a PI controller for the force
